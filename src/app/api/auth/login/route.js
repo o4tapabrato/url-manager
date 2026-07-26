@@ -57,7 +57,7 @@ export async function POST(request) {
                 user: {
                     id: user.id,
                     username: user.username,
-                    email: user.emal
+                    email: user.email
                 },
             },
             { status: 200 }
