@@ -3,9 +3,10 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect } from "react";
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const registered = searchParams.get('registered');
@@ -179,4 +180,12 @@ export default function LoginPage() {
 
         </div>
     )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="text-white text-center p-8">Loading...</div>}>
+            <LoginForm />
+        </Suspense>
+    );
 }
