@@ -7,53 +7,117 @@ import { useRouter } from "next/navigation"
 export default function Dashboard() {
     const router = useRouter();
     const [user, setUser] = useState(null);
-    const [links, setLinks] = useState([
-        { id: 1, title: 'Portfolio Project', originalUrl: 'https://github.com/username/project', shortUrl: 'linksnip.io/xyz99', clicks: 142, createdAt: '2026-07-20' },
-        { id: 2, title: 'YouTube Channel', originalUrl: 'https://youtube.com/@channel', shortUrl: 'linksnip.io/yt-vid', clicks: 890, createdAt: '2026-07-22' }
-    ])
+    const [links, setLinks] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const [originalUrl, setoriginalUrl] = useState('');
+    const [baseUrl, setBaseUrl] = useState('');
+    const [originalUrl, setOriginalUrl] = useState('');
     const [customSlug, setCustomSlug] = useState('');
     const [copiedId, setCopiedId] = useState('');
 
     useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setBaseUrl(window.location.host);
+        }
+
         fetch('/api/auth/me').then((res) => {
-            if(!res.ok)
+            if (!res.ok)
                 router.push('/login');
             else
                 return res.json();
         }
-    ).then((data) => {
-        if(data && data.user) {
-            setUser(user);
-        }
-    }).catch(() => {
-        router.push('/login');
-    })
+        ).then((data) => {
+            if (data && data.user) {
+                setUser(user);
+            }
+        }).catch(() => {
+            router.push('/login');
+        })
     }, [router]);
 
-    const handleCreateLink = (e) => {
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const response = await fetch('/api/links', { method: 'GET' });
+
+                if (!response.ok) {
+                    throw new Error("Unable to fetch the links");
+                }
+
+                const data = await response.json();
+
+                if (data && Array.isArray(data.links)) {
+                    const formattedLinks = data.links.map((link) => ({
+                        id: link.id,
+                        title: link.shortCode,
+                        originalUrl: link.originalUrl,
+                        shortCode: link.shortCode,
+                        shortUrl: `${window.location.host}/${link.shortCode}`,
+                        clicks: link.clicksCount || 0, // <-- Mapped from schema's clicksCount
+                        createdAt: link.createdAt ? link.createdAt.split('T')[0] : '',
+                    }));
+                    setLinks(formattedLinks);
+                }
+            }
+            catch (error) {
+                console.log(error);
+                setLinks([]);
+            }
+            finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const copyToClipboard = (shortCode, id) => {
+        const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+        const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
+        const fullUrl = `${protocol}//${host}/${shortCode}`;
+
+        navigator.clipboard.writeText(fullUrl);
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+    };
+
+    const handleCreateLink = async (e) => {
         e.preventDefault();
         if (!originalUrl)
             return;
 
-        const newLink = {
-            id: Date.now(),
-            title: customSlug ? customSlug : 'direct link',
-            originalUrl,
-            shortUrl: `linksnip.io/${customSlug || Math.random().toString(36).substring(7)}`,
-            clicks: 0,
-            createdAt: new Date().toISOString.split('T')[0]
+        try {
+            const response = await fetch('/api/links', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    originalUrl,
+                    customSlug: customSlug || undefined,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create short link');
+            }
+
+            const newLink = {
+                id: data.link.id,
+                title: data.link.shortCode,
+                originalUrl: data.link.originalUrl,
+                shortCode: data.link.shortCode,
+                shortUrl: `${baseUrl}/${data.link.shortCode}`,
+                clicks: data.link.clicks,
+                createdAt: data.link.createdAt.split('T')[0],
+            };
+
+            setLinks([newLink, ...links]);
+            setOriginalUrl('');
+            setCustomSlug('');
+        } catch (error) {
+            alert(error.message);
         }
-
-        setLinks([newLink, ...links]);
-        setoriginalUrl('');
-        setCustomSlug('');
-    }
-
-    const copyToClipboard = (text, id) => {
-        navigator.clipboard.writeText(text);
-        setTimeout(() => setCopiedId(null), 2000);
     }
 
     const handleLogout = async () => {
@@ -96,12 +160,14 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl backdrop-blur">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Total Links</p>
-                        <p className="text-3xl font-bold text-white">{links.length}</p>
+                        <p className="text-3xl font-bold text-white">{Array.isArray(links) ? links.length : 0}</p>
                     </div>
                     <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl backdrop-blur">
                         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Total Clicks</p>
                         <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
-                            {links.reduce((acc, curr) => acc + curr.clicks, 0)}
+                            {Array.isArray(links)
+                                ? links.reduce((acc, curr) => acc + (Number(curr.clicks) || 0), 0)
+                                : 0}
                         </p>
                     </div>
                     <div className="bg-slate-900/60 border border-slate-800/80 p-6 rounded-2xl backdrop-blur">
@@ -168,7 +234,7 @@ export default function Dashboard() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    links.map((link) => (
+                                    Array.isArray(links) && links.map((link) => (
                                         <tr key={link.id} className="hover:bg-slate-950/30 transition">
                                             <td className="py-4 px-6 font-medium text-indigo-400">
                                                 {link.shortUrl}
@@ -181,7 +247,7 @@ export default function Dashboard() {
                                             </td>
                                             <td className="py-4 px-6 text-right">
                                                 <button
-                                                    onClick={() => copyToClipboard(`https://${link.shortUrl}`, link.id)}
+                                                    onClick={() => copyToClipboard(`${link.shortUrl}`, link.id)}
                                                     className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
                                                 >
                                                     {copiedId === link.id ? 'Copied!' : 'Copy Link'}

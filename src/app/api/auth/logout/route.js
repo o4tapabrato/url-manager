@@ -1,4 +1,3 @@
-import { HTTPAccessFallbackBoundary } from 'next/dist/server/app-render/entry-base';
 import { NextResponse } from 'next/server';
 
 export async function POST() {
