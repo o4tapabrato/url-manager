@@ -1,38 +1,53 @@
-const handleCreateLink = async (e) => {
-        e.preventDefault();
-        if (!originalUrl) return;
+const [qrModalUrl, setQrModalUrl] = useState(null);
 
-        try {
-            const response = await fetch('/api/links', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    originalUrl,
-                    customSlug: customSlug || undefined,
-                }),
-            });
 
-            const data = await response.json();
+const openQrModal = (shortCode) => {
+    const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+    const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
+    setQrModalUrl(`${protocol}//${host}/${shortCode}`);
+};
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create short link');
-            }
 
-            // Construct the formatted object for your state table
-            const newLink = {
-                id: data.link.id,
-                title: data.link.shortCode,
-                originalUrl: data.link.originalUrl,
-                shortCode: data.link.shortCode,
-                shortUrl: `${baseUrl}/${data.link.shortCode}`,
-                clicks: data.link.clicks,
-                createdAt: data.link.createdAt.split('T')[0],
-            };
 
-            setLinks([newLink, ...links]);
-            setOriginalUrl('');
-            setCustomSlug('');
-        } catch (error) {
-            alert(error.message);
-        }
-    };
+<td className="py-4 px-6 text-right space-x-2">
+    <button
+        onClick={() => openQrModal(link.shortCode)}
+        className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+    >
+        QR Code
+    </button>
+    <button
+        onClick={() => copyToClipboard(link.shortCode, link.id)}
+        className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+    >
+        {copiedId === link.id ? 'Copied!' : 'Copy'}
+    </button>
+    <button
+        onClick={() => handleDeleteLink(link.id)}
+        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+    >
+        Delete
+    </button>
+</td>
+
+
+
+{/* QR Code Modal */}
+{qrModalUrl && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Scan to open on phone</h3>
+            <div className="bg-white p-4 rounded-xl inline-block mx-auto">
+                {/* Import QRCodeCanvas from 'qrcode.react' at the top of your file */}
+                <QRCodeCanvas value={qrModalUrl} size={200} level="H" />
+            </div>
+            <p className="text-xs text-slate-400 break-all">{qrModalUrl}</p>
+            <button
+                onClick={() => setQrModalUrl(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 rounded-xl transition text-sm cursor-pointer"
+            >
+                Close
+            </button>
+        </div>
+    </div>
+)}

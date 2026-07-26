@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { QRCodeCanvas } from "qrcode.react"
 
 export default function Dashboard() {
     const router = useRouter();
@@ -14,6 +15,7 @@ export default function Dashboard() {
     const [originalUrl, setOriginalUrl] = useState('');
     const [customSlug, setCustomSlug] = useState('');
     const [copiedId, setCopiedId] = useState('');
+    const [qrModalUrl, setQrModalUrl] = useState(null);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -74,7 +76,7 @@ export default function Dashboard() {
     const copyToClipboard = (shortCode, id) => {
         const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
         const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
-        const fullUrl = `${protocol}//${host}/${shortCode}`;
+        const fullUrl = `${protocol}//${shortCode}`;
 
         navigator.clipboard.writeText(fullUrl);
         setCopiedId(id);
@@ -118,6 +120,33 @@ export default function Dashboard() {
         } catch (error) {
             alert(error.message);
         }
+    }
+
+    const handleDeleteLink = async (id) => {
+        if (!confirm("Are you sure you want to delete this link?"))
+            return;
+
+        try {
+            const response = await fetch(`/api/links/${id}`, { method: 'DELETE' });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to delete the link");
+            }
+
+            //removing the delted link from the list
+            setLinks(links.filter((link) => link.id !== id));
+        }
+        catch (error) {
+            alert(error.message);
+        }
+    }
+
+    const openQrModal = (shortCode) => {
+        const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+        const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
+        const fullUrl = `${protocol}//${shortCode}`;
+        setQrModalUrl(fullUrl);
     }
 
     const handleLogout = async () => {
@@ -227,6 +256,7 @@ export default function Dashboard() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800 text-sm">
+
                                 {links.length === 0 ? (
                                     <tr>
                                         <td colSpan="4" className="py-8 text-center text-slate-500">
@@ -245,12 +275,24 @@ export default function Dashboard() {
                                             <td className="py-4 px-6 text-slate-300 font-semibold">
                                                 {link.clicks}
                                             </td>
-                                            <td className="py-4 px-6 text-right">
+                                            <td className="py-4 px-6 text-right space-x-2">
                                                 <button
-                                                    onClick={() => copyToClipboard(`${link.shortUrl}`, link.id)}
+                                                    onClick={() => openQrModal(link.shortCode)}
+                                                    className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+                                                >
+                                                    QR Code
+                                                </button>
+                                                <button
+                                                    onClick={() => copyToClipboard(link.shortCode, link.id)}
                                                     className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
                                                 >
-                                                    {copiedId === link.id ? 'Copied!' : 'Copy Link'}
+                                                    {copiedId === link.id ? 'Copied!' : 'Copy'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteLink(link.id)}
+                                                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer"
+                                                >
+                                                    Delete
                                                 </button>
                                             </td>
                                         </tr>
@@ -260,6 +302,26 @@ export default function Dashboard() {
                         </table>
                     </div>
                 </div>
+
+                {/* QR Code Modal */}
+                {qrModalUrl && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+                            <h3 className="text-lg font-bold text-white">Scan to open on phone</h3>
+                            <div className="bg-white p-4 rounded-xl inline-block mx-auto">
+                                {/* Import QRCodeCanvas from 'qrcode.react' at the top of your file */}
+                                <QRCodeCanvas value={qrModalUrl} size={200} level="H" />
+                            </div>
+                            <p className="text-xs text-slate-400 break-all">{qrModalUrl}</p>
+                            <button
+                                onClick={() => setQrModalUrl(null)}
+                                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-2 rounded-xl transition text-sm cursor-pointer"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
 
             </main>
 
