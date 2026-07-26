@@ -56,7 +56,7 @@ export default function Dashboard() {
                         originalUrl: link.originalUrl,
                         shortCode: link.shortCode,
                         shortUrl: `${window.location.host}/${link.shortCode}`,
-                        clicks: link.clicksCount || 0, // <-- Mapped from schema's clicksCount
+                        clicks: link.clicksCount || 0,
                         createdAt: link.createdAt ? link.createdAt.split('T')[0] : '',
                     }));
                     setLinks(formattedLinks);
@@ -76,7 +76,7 @@ export default function Dashboard() {
     const copyToClipboard = (shortCode, id) => {
         const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
         const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
-        const fullUrl = `${protocol}//${shortCode}`;
+        const fullUrl = `${protocol}//${host}/${shortCode}`;
 
         navigator.clipboard.writeText(fullUrl);
         setCopiedId(id);
@@ -145,7 +145,7 @@ export default function Dashboard() {
     const openQrModal = (shortCode) => {
         const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
         const host = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
-        const fullUrl = `${protocol}//${shortCode}`;
+        const fullUrl = `${protocol}//${host}/${shortCode}`;
         setQrModalUrl(fullUrl);
     }
 
